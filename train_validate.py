@@ -72,17 +72,17 @@ if __name__ == '__main__':
                         default='data/train_raw.csv')
     parser.add_argument('test_file', type=str, help='path to test csv file',
                         default='data/test_raw.csv')
-    parser.add_argument('valid_size', type=float, help='size of validation data (proportion)',
+    parser.add_argument('valid_size', type=float, help='validation data proportion for split',
                         default=0.15)
     # Data parameters
-    parser.add_argument('sampling_method', type=str, help='method for sampling',
-                        default='under')
-    parser.add_argument('under_sample_rate', type=float, help='sampling rate for under-sampling',
+    parser.add_argument('sampling_method', type=str, help='method for sampling (over or under sampling)',
+                        default='under', choices=['under', 'over'])
+    parser.add_argument('under_sample_rate', type=float, help='sampling rate for sampling method',
                         default=0.5)
     parser.add_argument('remove_columns', type=str, help='method for columns removal',
                         default='')
-    parser.add_argument('scale_method', type=str, help='method for scaling',
-                        default='standard')
+    parser.add_argument('scale_method', type=str, help='method for scaling (standard or minmax scalers)',
+                        default='standard', choices=['standard', 'minmax'])
     parser.add_argument('scaling_columns', type=str, help='method for columns removal',
                         default='')  # '_' delimited: "HR_Temp_..."
     # Model parameters
