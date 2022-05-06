@@ -86,29 +86,30 @@ if __name__ == '__main__':
     parser.add_argument('scaling_columns', type=str, help='method for columns removal',
                         default='')  # '_' delimited: "HR_Temp_..."
     # Model parameters
-    parser.add_argument('batch_size', type=float, help='batch size',
-                        default=30)
     parser.add_argument('train_batch_size', type=float, help='train batch size',
-                        default=30)
+                        default=8)
     parser.add_argument('test_batch_size', type=float, help='test batch size',
-                        default=30)
+                        default=32)
     parser.add_argument('window_size', type=int, help='window size',
-                        default=30)
+                        default=32)
     parser.add_argument('hidden_dim', type=int, help='',
-                        default=600)
+                        default=256)
     parser.add_argument('LSTM_n_layers', type=int, help='',
-                        default=3)
+                        default=2)
     parser.add_argument('dropout', type=float, help='',
-                        default=0.4)
+                        default=0.3)
     parser.add_argument('lr', type=float, help='',
-                        default=0.01)
+                        default=0.005)
     parser.add_argument('true_threshold', type=float, help='',
                         default=0.5)
     parser.add_argument('epochs', type=int, help='',
                         default=100)
+    parser.add_argument('logging_mode', type=str, choices=['online', 'offline', 'disabled'], help='',
+                        default='online')
 
     args = parser.parse_args()
 
+    wandb.login()
     # read data
     print('Reading CSV...')
     t_df = pd.read_csv(args.train_file, index_col=0, dtype='float')
@@ -147,7 +148,7 @@ if __name__ == '__main__':
             scaler = MinMaxScaler()
         if not args.scaling_columns:
             scaling_columns = ['HR', 'O2Sat', 'Temp', 'SBP', 'MAP', 'DBP', 'Resp', 'EtCO2', 'Age', 'HospAdmTime',
-                               'ICULOS']  # rest are already scaled
+                               'ICULOS']
         else:
             scaling_columns = args.scaling_columns.split('_')
         train, valid, test = scaler_fn(scaler, scaling_columns, train, valid, test)
@@ -164,7 +165,7 @@ if __name__ == '__main__':
     if sampler is not None:
         train_dl = DataLoader(train_ds, batch_size=args.train_batch_size, collate_fn=batch_collate, sampler=sampler)
     else:
-        train_dl = DataLoader(train_ds, batch_size=args.batch_size, collate_fn=batch_collate, shuffle=True)
+        train_dl = DataLoader(train_ds, batch_size=args.train_batch_size, collate_fn=batch_collate, shuffle=True)
     valid_dl = DataLoader(valid_ds, batch_size=args.test_batch_size, collate_fn=batch_collate)
     test_dl = DataLoader(test_ds, batch_size=args.test_batch_size, collate_fn=batch_collate)
 
@@ -179,11 +180,13 @@ if __name__ == '__main__':
     trainer = RNNTrainer(model, loss_fn, optimizer, true_threshold=args.true_threshold)
 
     # train and test
-    model_name = f'{wandb.run.dir}/model'
-    trainer.fit(train_dl, valid_dl, args.epochs, score_fn=score_fn, checkpoints=model_name,
-                early_stopping=15)
+    with wandb.init(project='hw1', entity='course094295', mode=args.logging_mode, config=vars(args)):
+        model_name = f'{wandb.run.dir}/model'
+        trainer.fit(train_dl, valid_dl, args.epochs, score_fn=score_fn, checkpoints=model_name,
+                    early_stopping=15)
+        wandb.watch(model, log_freq=100)
 
-    trainer.model.load_state_dict(torch.load(f'{model_name}.pth'))
+        trainer.model.load_state_dict(torch.load(f'{model_name}.pth'))
 
-    trainer.test(test_dl, score_fn=score_fn)
+        trainer.test(test_dl, score_fn=score_fn)
     

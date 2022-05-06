@@ -4,10 +4,8 @@ import sys
 import torch
 import torch.nn as nn
 import tqdm.auto
-from sklearn.metrics import f1_score
-from torch import Tensor
-from typing import Any, Tuple, Callable, Optional, cast
-from torch.optim import Optimizer
+import wandb
+from typing import Any, Callable
 from torch.utils.data import DataLoader
 
 from score_functions import prediction_scores, Scorer
@@ -86,6 +84,7 @@ class Trainer(abc.ABC):
             test_loss += test_result.losses
             test_score.append(test_result.score)
 
+            wandb.log({'epoch': epoch, 'train_score': train_result.score, 'test_score': test_result.score})
             # Early stopping and checkpoint
             if best_acc is None or test_result.score > best_acc:
                 best_acc = test_result.score
@@ -252,6 +251,7 @@ class RNNTrainer(Trainer):
         predictions = torch.sigmoid(output)
         predictions = (predictions > self.true_threshold).int()
 
+        wandb.log({'train_loss': loss.item})
         return BatchResult(loss.item(), *prediction_scores(predictions, y))
 
     def test_batch(self, batch) -> BatchResult:
@@ -267,6 +267,7 @@ class RNNTrainer(Trainer):
         predictions = torch.sigmoid(output)
         predictions = (predictions > self.true_threshold).int()
 
+        wandb.log({'test_loss': loss.item})
         return BatchResult(loss.item(), *prediction_scores(predictions, y))
 
     # def test_batch_niv(self, batch) -> BatchResult:
