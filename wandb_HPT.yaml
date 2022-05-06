@@ -1,0 +1,36 @@
+program: train_validate.py
+method: bayes
+
+metric:
+  name: validation_score
+  goal: maximize
+
+parameters:
+  sampling_method:
+    values: [ 'under', 'over' ]
+  scale_method:
+    values: [ 'standard', 'minmax' ]
+  under_sample_rate:
+    values: [ 0.5, 0.25, 0.2, 0.125, 0.1 ]
+  LSTM_n_layers:
+    min: 1
+    max: 4
+  dropout:
+    min: 0.05
+    max: 0.45
+  lr:
+    min: 0.0001
+    max: 0.01
+  epochs:
+    min: 20
+    max: 100
+  hidden_dim:
+    values: [32, 64, 128, 256, 512]
+  train_batch_size:
+    min: 4
+    max: 64
+  window_size:
+    min: 5
+    max: 50
+  true_threshold:
+    values: [ 0.3, 0.4, 0.5, 0.6, 0.7 ]
