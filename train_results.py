@@ -8,7 +8,10 @@ class BatchResult(NamedTuple):
     """
 
     loss: float
-    num_correct: int
+    TP: int
+    FP: int
+    TN: int
+    FN: int
 
 
 class EpochResult(NamedTuple):
@@ -18,7 +21,7 @@ class EpochResult(NamedTuple):
     """
 
     losses: List[float]
-    accuracy: float
+    score: float
 
 
 class FitResult(NamedTuple):
@@ -30,6 +33,6 @@ class FitResult(NamedTuple):
 
     num_epochs: int
     train_loss: List[float]
-    train_acc: List[float]
+    train_score: List[float]
     test_loss: List[float]
-    test_acc: List[float]
+    test_score: List[float]

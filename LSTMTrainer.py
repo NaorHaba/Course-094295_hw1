@@ -4,11 +4,13 @@ import sys
 import torch
 import torch.nn as nn
 import tqdm.auto
+from sklearn.metrics import f1_score
 from torch import Tensor
 from typing import Any, Tuple, Callable, Optional, cast
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
+from score_functions import prediction_scores, Scorer
 from train_results import FitResult, BatchResult, EpochResult
 
 
@@ -59,7 +61,7 @@ class Trainer(abc.ABC):
 
         actual_num_epochs = 0
         epochs_without_improvement = 0
-        train_loss, train_acc, test_loss, test_acc = [], [], [], []
+        train_loss, train_score, test_loss, test_score = [], [], [], []
         best_acc = None
 
         for epoch in range(num_epochs):
@@ -78,15 +80,15 @@ class Trainer(abc.ABC):
 
             train_result = self.train_epoch(dl_train, **kw)
             train_loss += train_result.losses
-            train_acc.append(train_result.accuracy)
+            train_score.append(train_result.score)
 
             test_result = self.test_epoch(dl_test, **kw)
             test_loss += test_result.losses
-            test_acc.append(test_result.accuracy)
+            test_score.append(test_result.score)
 
             # Early stopping and checkpoint
-            if best_acc is None or test_result.accuracy > best_acc:
-                best_acc = test_result.accuracy
+            if best_acc is None or test_result.score > best_acc:
+                best_acc = test_result.score
                 epochs_without_improvement = 0
                 if checkpoints:
                     filename = os.getcwd()+'/'+checkpoints+'.pth'
@@ -100,7 +102,7 @@ class Trainer(abc.ABC):
             if post_epoch_fn:
                 post_epoch_fn(epoch, train_result, test_result, verbose)
 
-        return FitResult(actual_num_epochs, train_loss, train_acc, test_loss, test_acc)
+        return FitResult(actual_num_epochs, train_loss, train_score, test_loss, test_score)
 
     def save_checkpoint(self, checkpoint_filename: str):
         """
@@ -166,6 +168,7 @@ class Trainer(abc.ABC):
     def _foreach_batch(
         dl: DataLoader,
         forward_fn: Callable[[Any], BatchResult],
+        score_fn: Scorer,
         verbose=True,
         max_batches=None,
     ) -> EpochResult:
@@ -174,7 +177,7 @@ class Trainer(abc.ABC):
         dataloader, and prints progress along the way.
         """
         losses = []
-        num_correct = 0
+        TP, FP, TN, FN = 0, 0, 0, 0
         num_samples = len(dl.sampler)
         num_batches = len(dl.batch_sampler)
 
@@ -201,29 +204,31 @@ class Trainer(abc.ABC):
                 pbar.update()
 
                 losses.append(batch_res.loss)
-                num_correct += batch_res.num_correct
+                TP += batch_res.TP
+                FP += batch_res.FP
+                TN += batch_res.TN
+                FN += batch_res.FN
 
             avg_loss = sum(losses) / num_batches
-            accuracy = 100.0 * num_correct / num_samples
+            score = score_fn(TP, FP, TN, FN)
             pbar.set_description(
                 f"{pbar_name} "
-                f"(Avg. Loss {avg_loss:.3f}, "
-                f"Accuracy {accuracy:.1f})"
+                f"(Avg. Loss: {avg_loss:.3f}, "
+                f"Score {score_fn.name}:  {score:.3f})"
             )
 
         if not verbose:
             pbar_file.close()
 
-        return EpochResult(losses=losses, accuracy=accuracy)
+        return EpochResult(losses=losses, score=score)
 
 
 class RNNTrainer(Trainer):
-    def __init__(self, model, loss_fn, optimizer, true_threshold=0.5, score_fn=None):
+    def __init__(self, model, loss_fn, optimizer, true_threshold=0.5):
         super().__init__(model)
         self.loss_fn = loss_fn
         self.optimizer = optimizer
         self.true_threshold = true_threshold
-        self.score_fn = score_fn
 
     def train_batch(self, batch) -> BatchResult:
         x, y = batch
@@ -234,17 +239,17 @@ class RNNTrainer(Trainer):
         #  - Backward pass: truncated back-propagation through time
         #  - Update params
         #  - Calculate score function
-        output = self.model(x)
+        output = self.model(x).squeeze(1)
         self.optimizer.zero_grad()
         loss = self.loss_fn(output, y)
 
         loss.backward()
         self.optimizer.step()
 
-        predictions = nn.functional.sigmoid(output)
+        predictions = torch.sigmoid(output)
         predictions = (predictions > self.true_threshold).int()
 
-        return BatchResult(loss.item(), self.score_fn(y, predictions))
+        return BatchResult(loss.item(), *prediction_scores(predictions, y))
 
     def test_batch(self, batch) -> BatchResult:
         x, y = batch
@@ -253,33 +258,29 @@ class RNNTrainer(Trainer):
         #  - Forward pass
         #  - Calculate total loss over sequence
         #  - Calculate score function
-        output = self.model(x)
+        output = self.model(x).squeeze(1)
         loss = self.loss_fn(output, y)
 
-        predictions = nn.functional.sigmoid(output)
+        predictions = torch.sigmoid(output)
         predictions = (predictions > self.true_threshold).int()
 
-        return BatchResult(loss.item(), self.score_fn(y, predictions))
+        return BatchResult(loss.item(), *prediction_scores(predictions, y))
 
-    def test_batch_niv(self, batch) -> BatchResult:
-        sequences, label = batch
-        seq_len = y.shape[1]
-
-        with torch.no_grad():
-            #  Evaluate the RNN model on one batch of data.
-            #  - Forward pass
-            #  - Loss calculation
-            #  - Calculate number of correct predictions
-            # ====== YOUR CODE: ======
-            output, hidden_state = self.model(x, self.test_hidden_state)
-            self.test_hidden_state = hidden_state
-            loss = 0
-            num_correct = 0
-            for i, seq in enumerate(sequences):
-                logits = output[:, i, :].squeeze(1)
-                pred = torch.argmax(logits, dim=1)
-                loss += self.loss_fn(logits, y[:, i])
-                num_correct += (y[:, i] == pred).sum()
-            # ========================
-
-        return BatchResult(loss.item(), num_correct.item() / seq_len)
+    # def test_batch_niv(self, batch) -> BatchResult:
+    #     # x - iterator of patient's sequences (batch X length X features), model(x) -> batch (scores)
+    #     # y - one label of the patient
+    #     x, y = batch
+    #     print(x.shape)
+    #     threshold = torch.exp(x.shape[1] - 1)  # TODO: think about it
+    #     weights = torch.exp(torch.range(0, x.shape[2]))
+    #     weights = weights / weights.sum()
+    #
+    #     with torch.no_grad():
+    #         output = self.model(x)
+    #         print(output.shape)
+    #         print(y.shape)
+    #         loss = self.loss_fn(output, y)
+    #         scores = torch.sigmoid(output) * weights  # [0, e^1, 0, 0, e^4, ...]
+    #         predictions = (scores.sum(axis=1) > threshold).int()  # [1, 0, 0, 1, ...]
+    #
+    #     return BatchResult(loss.item(), *prediction_scores(predictions, y))
