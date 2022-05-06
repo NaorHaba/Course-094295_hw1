@@ -104,6 +104,9 @@ class Trainer(abc.ABC):
 
         return FitResult(actual_num_epochs, train_loss, train_score, test_loss, test_score)
 
+    def test(self, dl_test, **kw) -> EpochResult:
+        return self.test_epoch(dl_test, **kw)
+
     def save_checkpoint(self, checkpoint_filename: str):
         """
         Saves the model in it's current state to a file with the given name (treated

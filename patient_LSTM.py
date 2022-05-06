@@ -7,13 +7,12 @@ from sklearn.base import TransformerMixin, BaseEstimator
 
 
 class PatientDataset(torch.utils.data.Dataset):
-    def __init__(self, X_df: pd.DataFrame, y: pd.Series, scaler: Optional[BaseEstimator] = None):
+    def __init__(self, X_df: pd.DataFrame, y: pd.Series):
         if X_df.shape[0] != len(y):
             raise ValueError("Received dataframe has different length than received label")
         self.X_df = X_df
         self.patients = X_df.id.unique()
         self.y = y
-        self.scaler = scaler
 
     def __len__(self):
         return len(self.patients)
@@ -21,15 +20,13 @@ class PatientDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         patient = self.patients[idx]
         data = self.X_df[self.X_df['id'] == patient].drop('id', axis=1)
-        if self.scaler is not None:
-            data = self.scaler.transform(data)
         labels = self.y[data.index]
         return data, labels
 
 
 class TrainDataset(PatientDataset):
-    def __init__(self, X_df: pd.DataFrame, y: pd.Series, window: int, scaler: Optional[BaseEstimator] = None):
-        super().__init__(X_df, y, scaler)
+    def __init__(self, X_df: pd.DataFrame, y: pd.Series, window: int):
+        super().__init__(X_df, y)
         self.window = window
 
     def __getitem__(self, idx):
@@ -38,16 +35,16 @@ class TrainDataset(PatientDataset):
                torch.tensor(labels.tail(self.window).max(), dtype=torch.float32)
 
 
-class TestDataset(PatientDataset):
-    def __init__(self, X_df: pd.DataFrame, y: pd.Series, window: int, scaler: Optional[BaseEstimator] = None):
-        super().__init__(X_df, y, scaler)
-        self.window = window
-
-    def __getitem__(self, idx):
-        data, labels = super().__getitem__(idx)
-        data_iter = data.rolling(self.window)
-        return [torch.tensor(df.values, dtype=torch.float32) for df in data_iter], \
-               torch.tensor(labels.max(), dtype=torch.float32)
+# class TestDataset(PatientDataset):
+#     def __init__(self, X_df: pd.DataFrame, y: pd.Series, window: int):
+#         super().__init__(X_df, y)
+#         self.window = window
+#
+#     def __getitem__(self,     idx):
+#         data, labels = super().__getitem__(idx)
+#         data_iter = data.rolling(self.window)
+#         return [torch.tensor(df.values, dtype=torch.float32) for df in data_iter], \
+#                torch.tensor(labels.max(), dtype=torch.float32)
 
 
 # collate function to pad a batch
@@ -66,18 +63,18 @@ def batch_collate(batch):
     return (features, x_lengths), labels
 
 
-def test_batch_collate(batch):  # for multiple windows of the same patient (1 patinet!!)
-    features_list = []
-
-    for _features in batch[0][0]:
-        features_list.append(_features)
-
-    features = pad_sequence(features_list, batch_first=True, padding_value=0)
-    x_lengths = torch.LongTensor([len(x) for x in features_list])
-
-    # labels = torch.tensor(batch[0][1], dtype=torch.float32)
-
-    return (features, x_lengths), batch[0][1]
+# def test_batch_collate(batch):  # for multiple windows of the same patient (1 patinet!!)
+#     features_list = []
+#
+#     for _features in batch[0][0]:
+#         features_list.append(_features)
+#
+#     features = pad_sequence(features_list, batch_first=True, padding_value=0)
+#     x_lengths = torch.LongTensor([len(x) for x in features_list])
+#
+#     # labels = torch.tensor(batch[0][1], dtype=torch.float32)
+#
+#     return (features, x_lengths), batch[0][1]
 
 
 class patientLSTM(nn.Module):
