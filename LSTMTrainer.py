@@ -214,7 +214,7 @@ class Trainer(abc.ABC):
             pbar.set_description(
                 f"{pbar_name} "
                 f"(Avg. Loss: {avg_loss:.3f}, "
-                f"Score {score_fn.name}:  {score:.1f})"
+                f"Score {score_fn.name}:  {score:.3f})"
             )
 
         if not verbose:
@@ -266,25 +266,21 @@ class RNNTrainer(Trainer):
 
         return BatchResult(loss.item(), *prediction_scores(predictions, y))
 
-    def test_batch_niv(self, batch) -> BatchResult:
-        sequences, label = batch
-        seq_len = y.shape[1]
-
-        with torch.no_grad():
-            #  Evaluate the RNN model on one batch of data.
-            #  - Forward pass
-            #  - Loss calculation
-            #  - Calculate number of correct predictions
-            # ====== YOUR CODE: ======
-            output, hidden_state = self.model(x, self.test_hidden_state)
-            self.test_hidden_state = hidden_state
-            loss = 0
-            num_correct = 0
-            for i, seq in enumerate(sequences):
-                logits = output[:, i, :].squeeze(1)
-                pred = torch.argmax(logits, dim=1)
-                loss += self.loss_fn(logits, y[:, i])
-                num_correct += (y[:, i] == pred).sum()
-            # ========================
-
-        return BatchResult(loss.item(), num_correct.item() / seq_len)
+    # def test_batch_niv(self, batch) -> BatchResult:
+    #     # x - iterator of patient's sequences (batch X length X features), model(x) -> batch (scores)
+    #     # y - one label of the patient
+    #     x, y = batch
+    #     print(x.shape)
+    #     threshold = torch.exp(x.shape[1] - 1)  # TODO: think about it
+    #     weights = torch.exp(torch.range(0, x.shape[2]))
+    #     weights = weights / weights.sum()
+    #
+    #     with torch.no_grad():
+    #         output = self.model(x)
+    #         print(output.shape)
+    #         print(y.shape)
+    #         loss = self.loss_fn(output, y)
+    #         scores = torch.sigmoid(output) * weights  # [0, e^1, 0, 0, e^4, ...]
+    #         predictions = (scores.sum(axis=1) > threshold).int()  # [1, 0, 0, 1, ...]
+    #
+    #     return BatchResult(loss.item(), *prediction_scores(predictions, y))

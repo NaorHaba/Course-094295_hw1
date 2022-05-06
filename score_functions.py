@@ -15,6 +15,7 @@ class F1(Scorer):
         super().__init__("F1")
 
     def __call__(self, TP, FP, TN, FN):
+        print(f"{TP=}, {FP=}, {TN=}, {FN=}")
         try:
             recall = TP / (TP + FN)
             precision = TP / (TP + FP)

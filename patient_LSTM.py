@@ -20,7 +20,7 @@ class PatientDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         patient = self.patients[idx]
-        data = self.X_df[self.X_df['id'] == patient]
+        data = self.X_df[self.X_df['id'] == patient].drop('id', axis=1)
         if self.scaler is not None:
             data = self.scaler.transform(data)
         labels = self.y[data.index]
@@ -46,7 +46,7 @@ class TestDataset(PatientDataset):
     def __getitem__(self, idx):
         data, labels = super().__getitem__(idx)
         data_iter = data.rolling(self.window)
-        return (torch.tensor(df.values, dtype=torch.float32) for df in data_iter), \
+        return [torch.tensor(df.values, dtype=torch.float32) for df in data_iter], \
                torch.tensor(labels.max(), dtype=torch.float32)
 
 
@@ -64,6 +64,20 @@ def batch_collate(batch):
     labels = torch.tensor(label_list, dtype=torch.float32)
 
     return (features, x_lengths), labels
+
+
+def test_batch_collate(batch):  # for multiple windows of the same patient (1 patinet!!)
+    features_list = []
+
+    for _features in batch[0][0]:
+        features_list.append(_features)
+
+    features = pad_sequence(features_list, batch_first=True, padding_value=0)
+    x_lengths = torch.LongTensor([len(x) for x in features_list])
+
+    # labels = torch.tensor(batch[0][1], dtype=torch.float32)
+
+    return (features, x_lengths), batch[0][1]
 
 
 class patientLSTM(nn.Module):
