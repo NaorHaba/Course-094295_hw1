@@ -1,5 +1,7 @@
 program: train_validate.py
+project: hw1
 method: bayes
+count: 30
 
 metric:
   name: validation_score
@@ -7,7 +9,7 @@ metric:
 
 parameters:
   sampling_method:
-    values: [ 'under', 'over' ]
+    values: [ 'under', 'over', 'under-over' ]
   scale_method:
     values: [ 'standard', 'minmax' ]
   under_sample_rate:
@@ -32,5 +34,3 @@ parameters:
   window_size:
     min: 5
     max: 50
-  true_threshold:
-    values: [ 0.3, 0.4, 0.5, 0.6, 0.7 ]
