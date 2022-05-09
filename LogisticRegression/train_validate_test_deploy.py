@@ -58,8 +58,8 @@ if __name__ == '__main__':
     print('Scaling data...', end=' ')
     scaling_columns = ['HR', 'O2Sat', 'Temp', 'SBP', 'MAP', 'DBP', 'Resp', 'EtCO2', 'Age', 'HospAdmTime', 'ICULOS']
     scaler = StandardScaler()
-    X_train = scaler_fn(scaler, scaling_columns, tr_df)
-    X_test = scaler_fn(scaler, scaling_columns, te_df, test=True)
+    X_train = scaler_fn(scaler, scaling_columns, X_train)
+    X_test = scaler_fn(scaler, scaling_columns, X_test, test=True)
     pickle.dump(scaler, open('../models/LR_scaler.pkl', 'wb'))
     print('Done.')
 
