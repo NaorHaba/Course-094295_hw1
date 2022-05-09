@@ -86,7 +86,7 @@ def pipeline_eda(t_df, columns, save_path, test=False, icu_fill_cols=None, fix_s
     t_df = pd.get_dummies(t_df, columns=['Gender'])
 
     # filter y
-    if test:
+    if test:  #TODO: add ass argument
         print('Filtering SepsisLabel')
         t_df_raw = t_df[~((t_df['SepsisLabel'] == 1.0) & (t_df.groupby('id')['SepsisLabel'].diff() == 0.0))]
 
@@ -102,6 +102,7 @@ def pipeline_eda(t_df, columns, save_path, test=False, icu_fill_cols=None, fix_s
 
 
 if __name__ == '__main__':
+    #TODO: add argparse
     t_df = read_all_data(TEST_PATH)
 
     columns = {'vital_signs': t_df.columns[:8], 'lab_values': t_df.columns[8: 34],
@@ -125,22 +126,3 @@ if __name__ == '__main__':
                  icu_fill_cols=icu_fill_cols,
                  fix_smooth_cols=fix_smooth_cols,
                  lab_values=columns['lab_values'])
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Train and Validate model')
-
-    # Paths
-    parser.add_argument('train_file', type=str, help='path to train csv file')
-    parser.add_argument('test_file', type=str, help='path to test csv file')
-    parser.add_argument('valid_size', type=float, help='size of validation data (proportion)')
-
-    parser.add_argument('sampling_method', type=str, help='method for sampling')
-    parser.add_argument('remove_columns', type=str, help='method for columns removal')
-    parser.add_argument('scale_method', type=str, help='method for scaling')
-
-    parser.add_argument('--sum', dest='accumulate', action='store_const',
-                        const=sum, default=max,
-                        help='sum the integers (default: find the max)')
-
-    args = parser.parse_args()
