@@ -8,8 +8,8 @@ import wandb
 from typing import Any, Callable
 from torch.utils.data import DataLoader
 
-from score_functions import prediction_scores, Scorer
-from train_results import FitResult, BatchResult, EpochResult
+from utils.score_functions import prediction_scores, Scorer
+from utils.train_results import FitResult, BatchResult, EpochResult
 
 
 class Trainer(abc.ABC):

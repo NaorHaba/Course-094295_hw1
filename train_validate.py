@@ -1,17 +1,16 @@
 import argparse
 import pandas as pd
-import numpy as np
 import torch.nn as nn
 import torch
 import wandb
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import random
 
-from score_functions import F1
-from LSTMTrainer import RNNTrainer
+from utils.score_functions import F1
+from LSTM.LSTMTrainer import RNNTrainer
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
-from patient_LSTM import TrainDataset, patientLSTM, batch_collate
+from LSTM.patient_LSTM import TrainDataset, patientLSTM, batch_collate
 random.seed(42)
 
 
