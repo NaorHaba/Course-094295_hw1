@@ -86,7 +86,7 @@ def pipeline_eda(t_df, columns, save_path, test=False, icu_fill_cols=None, fix_s
     t_df = pd.get_dummies(t_df, columns=['Gender'])
 
     # filter y
-    if test:  #TODO: add ass argument
+    if test:  # TODO: add ass argument
         print('Filtering SepsisLabel')
         t_df_raw = t_df[~((t_df['SepsisLabel'] == 1.0) & (t_df.groupby('id')['SepsisLabel'].diff() == 0.0))]
 
@@ -102,7 +102,7 @@ def pipeline_eda(t_df, columns, save_path, test=False, icu_fill_cols=None, fix_s
 
 
 if __name__ == '__main__':
-    #TODO: add argparse
+    # TODO: add argparse
     t_df = read_all_data(TEST_PATH)
 
     columns = {'vital_signs': t_df.columns[:8], 'lab_values': t_df.columns[8: 34],
@@ -111,14 +111,14 @@ if __name__ == '__main__':
     icu_fill_cols = [columns['demographics'], columns['outcome'], columns['_id']]
 
     fix_smooth_cols = {'HR': (None, None),
-                'O2Sat': (None, None),
-                'Temp': (30, 43),
-                'SBP': (None, None),
-                'MAP': (None, None),
-                'DBP': (1, 250),
-                'Resp': (None, None),
-                'EtCO2': (None, None),
-                }
+                       'O2Sat': (None, None),
+                       'Temp': (30, 43),
+                       'SBP': (None, None),
+                       'MAP': (None, None),
+                       'DBP': (1, 250),
+                       'Resp': (None, None),
+                       'EtCO2': (None, None),
+                       }
 
     pipeline_eda(t_df, columns,
                  test=True,
