@@ -1,11 +1,9 @@
 from functools import partial
 
+import argparse
 import numpy as np
 import pandas as pd
 import os
-
-TRAIN_PATH = 'data/train'
-TEST_PATH = 'data/test'
 
 
 def read_all_data(folder):
@@ -56,7 +54,7 @@ def engineer_lab_values(df, lab_values):
     return df[lab_values]
 
 
-def pipeline_eda(t_df, columns, save_path, test=False, icu_fill_cols=None, fix_smooth_cols=None, lab_values=False):
+def pipeline_eda(t_df, columns, save_path, icu_fill_cols=None, fix_smooth_cols=None, lab_values=False):
     # add ICU where it's missing and bfill
     if icu_fill_cols:
         print('Filling ICULOS')
@@ -86,14 +84,8 @@ def pipeline_eda(t_df, columns, save_path, test=False, icu_fill_cols=None, fix_s
     t_df = pd.get_dummies(t_df, columns=['Gender'])
 
     # filter y
-    if test:  # TODO: add ass argument
-        print('Filtering SepsisLabel')
-        t_df_raw = t_df[~((t_df['SepsisLabel'] == 1.0) & (t_df.groupby('id')['SepsisLabel'].diff() == 0.0))]
-
-    # if test:
-    #     patients_labels = (t_df_raw.groupby('id').max()['SepsisLabel'] > 0).astype(int).to_dict()
-    #     t_df_raw['PatientLabel'] = np.zeros(len(t_df_raw))
-    #     t_df_raw['PatientLabel'] = t_df_raw['id'].apply(lambda l: 1 if patients_labels[l] == 1 else 0)
+    print('Filtering SepsisLabel')
+    t_df_raw = t_df[~((t_df['SepsisLabel'] == 1.0) & (t_df.groupby('id')['SepsisLabel'].diff() == 0.0))]
 
     print('Saving file')
     t_df_raw.to_csv(save_path, index=False)
@@ -101,9 +93,8 @@ def pipeline_eda(t_df, columns, save_path, test=False, icu_fill_cols=None, fix_s
     return t_df_raw
 
 
-if __name__ == '__main__':
-    # TODO: add argparse
-    t_df = read_all_data(TEST_PATH)
+def main(file):
+    t_df = read_all_data(file)
 
     columns = {'vital_signs': t_df.columns[:8], 'lab_values': t_df.columns[8: 34],
                'demographics': t_df.columns[34: 40], 'outcome': t_df.columns[40], '_id': t_df.columns[-1]}
@@ -121,8 +112,17 @@ if __name__ == '__main__':
                        }
 
     pipeline_eda(t_df, columns,
-                 test=True,
-                 save_path='data/test_raw.csv',
+                 save_path=f'data/{file.split("/")[-1]}_raw.csv',
                  icu_fill_cols=icu_fill_cols,
                  fix_smooth_cols=fix_smooth_cols,
                  lab_values=columns['lab_values'])
+    # TODO: make sure it's okay to do file.split..., meaning they will definitely give a path like this
+    return f'data/{file.split("/")[-1]}_raw.csv'
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Data Preprocessing')
+    parser.add_argument('--file', type=str, help='path to data folder (containing csv files)',
+                        default='data/train')
+    args = parser.parse_args()
+    main(args.file)
