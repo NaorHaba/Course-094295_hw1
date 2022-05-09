@@ -10,17 +10,16 @@ from utils.score_functions import F1
 from LSTM.LSTMTrainer import RNNTrainer
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
-from LSTM.patient_LSTM import TrainDataset, patientLSTM, batch_collate
+from LSTM.patient_LSTM import PatientDataset, patientLSTM, batch_collate
+
 random.seed(42)
 
 
 def split_features_label(df):
-
     return df.drop(['SepsisLabel'], axis=1), df['SepsisLabel'].astype(int)
 
 
 def split_train_validation(valid_size):
-
     sick = set(t_df[t_df['SepsisLabel'] == 1.0]['id'].unique())
     healthy = set(t_df['id'].unique()) - sick
     t_sick = set(random.sample(sick, int(len(sick) * (1 - valid_size))))
@@ -56,11 +55,12 @@ def weighted_over_sampler(train):
     return sampler
 
 
-def scaler_fn(scaler, scaling_columns, train, valid, test):
-    train[scaling_columns] = scaler.fit_transform(train[scaling_columns])
-    valid[scaling_columns] = scaler.transform(valid[scaling_columns])
-    test[scaling_columns] = scaler.transform(test[scaling_columns])
-    return train, valid, test
+def scaler_fn(scaler, scaling_columns, data, test=False):
+    if not test:
+        data[scaling_columns] = scaler.fit_transform(data[scaling_columns])
+    else:
+        data[scaling_columns] = scaler.transform(data[scaling_columns])
+    return data
 
 
 if __name__ == '__main__':
@@ -68,9 +68,9 @@ if __name__ == '__main__':
 
     # Paths
     parser.add_argument('--train_file', type=str, help='path to train csv file',
-                        default='data/train_raw.csv')
+                        default='../data/train_raw.csv')
     parser.add_argument('--test_file', type=str, help='path to test csv file',
-                        default='data/test_raw.csv')
+                        default='../data/test_raw.csv')
     parser.add_argument('--valid_size', type=float, help='validation data proportion for split',
                         default=0.15)
     # Data parameters
@@ -150,16 +150,18 @@ if __name__ == '__main__':
                                'ICULOS']
         else:
             scaling_columns = args.scaling_columns.split('_')
-        train, valid, test = scaler_fn(scaler, scaling_columns, train, valid, test)
+        train = scaler_fn(scaler, scaling_columns, train)
+        valid = scaler_fn(scaler, scaling_columns, valid, test=True)
+        test = scaler_fn(scaler, scaling_columns, test, test=True)
 
     # create data loaders
     train_X, train_y = split_features_label(train)
     valid_X, valid_y = split_features_label(valid)
     test_X, test_y = split_features_label(test)
 
-    train_ds = TrainDataset(train_X, train_y, args.window_size)
-    valid_ds = TrainDataset(valid_X, valid_y, args.window_size)
-    test_ds = TrainDataset(test_X, test_y, args.window_size)
+    train_ds = PatientDataset(train_X, train_y, args.window_size)
+    valid_ds = PatientDataset(valid_X, valid_y, args.window_size)
+    test_ds = PatientDataset(test_X, test_y, args.window_size)
 
     if sampler is not None:
         train_dl = DataLoader(train_ds, batch_size=args.train_batch_size, collate_fn=batch_collate, sampler=sampler)
@@ -180,7 +182,7 @@ if __name__ == '__main__':
 
     # train and test
     with wandb.init(project='hw1', entity='course094295', mode=args.logging_mode, config=vars(args)):
-        model_name = f'{wandb.run.dir}/model.pth'
+        model_name = f'../{wandb.run.dir}/model.pth'
         trainer.fit(train_dl, valid_dl, args.epochs, score_fn=score_fn, checkpoints=model_name,
                     early_stopping=15)
         wandb.watch(model, log_freq=100)
@@ -188,4 +190,3 @@ if __name__ == '__main__':
         trainer.model.load_state_dict(torch.load(model_name)['model_state'])
 
         trainer.test(test_dl, score_fn=score_fn)
-    

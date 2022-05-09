@@ -10,6 +10,8 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.feature_selection import SequentialFeatureSelector
 from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
 
+from LSTM.train_validate import scaler_fn
+
 
 def read_data(file):
     df = pd.read_csv(file, index_col=0, dtype='float')
@@ -56,8 +58,8 @@ if __name__ == '__main__':
     print('Scaling data...', end=' ')
     scaling_columns = ['HR', 'O2Sat', 'Temp', 'SBP', 'MAP', 'DBP', 'Resp', 'EtCO2', 'Age', 'HospAdmTime', 'ICULOS']
     scaler = StandardScaler()
-    X_train[scaling_columns] = scaler.fit_transform(X_train)
-    X_test[scaling_columns] = scaler.transform(X_test)
+    X_train = scaler_fn(scaler, scaling_columns, tr_df)
+    X_test = scaler_fn(scaler, scaling_columns, te_df, test=True)
     pickle.dump(scaler, open('../models/LR_scaler.pkl', 'wb'))
     print('Done.')
 
@@ -73,7 +75,7 @@ if __name__ == '__main__':
     clf = LogisticRegressionCV(cv=cv, random_state=0, scoring='f1', max_iter=max_iter).fit(X_train, y_train)
     print('Done.')
 
-    print(f'F1 Score: {round(clf.score(X_train, y_train), 3)}')  # TODO not sure if this is really f1
+    print(f'Train F1 Score: {round(clf.score(X_train, y_train), 3)}')  # TODO not sure if this is really f1
 
     print('Saving model...', end=' ')
     filename = '../models/LR_final_model.pkl'
@@ -82,3 +84,4 @@ if __name__ == '__main__':
 
     print('Testing model...')
     y_pred = clf.predict(X_test)
+    print(f'Test F1 Score: {round(clf.score(X_train, y_train), 3)}')  # TODO not sure if this is really f1
