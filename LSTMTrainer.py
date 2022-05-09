@@ -59,7 +59,7 @@ class Trainer(abc.ABC):
 
         actual_num_epochs = 0
         epochs_without_improvement = 0
-        train_loss, train_score, test_loss, test_score = [], [], [], []
+        train_loss, train_score, valid_loss, valid_score = [], [], [], []
         best_acc = None
 
         for epoch in range(num_epochs):
@@ -80,31 +80,32 @@ class Trainer(abc.ABC):
             train_loss += train_result.losses
             train_score.append(train_result.score)
 
-            test_result = self.test_epoch(dl_test, **kw)
-            test_loss += test_result.losses
-            test_score.append(test_result.score)
+            valid_result = self.validate_epoch(dl_test, **kw)
+            valid_loss += valid_result.losses
+            valid_score.append(valid_result.score)
 
-            wandb.log({'epoch': epoch, 'train_score': train_result.score, 'test_score': test_result.score})
+            wandb.log({'epoch': epoch, 'train_score': train_result.score, 'validation_score': valid_result.score})
             # Early stopping and checkpoint
-            if best_acc is None or test_result.score > best_acc:
-                best_acc = test_result.score
+            if best_acc is None or valid_result.score > best_acc:
+                best_acc = valid_result.score
                 epochs_without_improvement = 0
                 if checkpoints:
-                    filename = os.getcwd()+'/'+checkpoints+'.pth'
-                    os.makedirs(os.path.dirname(filename), exist_ok=True)
-                    self.save_checkpoint(filename)
+                    os.makedirs(os.path.dirname(checkpoints), exist_ok=True)
+                    self.save_checkpoint(checkpoints)
             else:
                 epochs_without_improvement += 1
             if early_stopping and epochs_without_improvement > early_stopping:
                 break
 
             if post_epoch_fn:
-                post_epoch_fn(epoch, train_result, test_result, verbose)
+                post_epoch_fn(epoch, train_result, valid_result, verbose)
 
-        return FitResult(actual_num_epochs, train_loss, train_score, test_loss, test_score)
+        return FitResult(actual_num_epochs, train_loss, train_score, valid_loss, valid_score)
 
     def test(self, dl_test, **kw) -> EpochResult:
-        return self.test_epoch(dl_test, **kw)
+        test_result = self.test_epoch(dl_test, **kw)
+        wandb.log({'test_score': test_result.score})
+        return test_result
 
     def save_checkpoint(self, checkpoint_filename: str):
         """
@@ -125,6 +126,16 @@ class Trainer(abc.ABC):
         self.model.train(True)  # set train mode
         return self._foreach_batch(dl_train, self.train_batch, **kw)
 
+    def validate_epoch(self, dl_test: DataLoader, **kw) -> EpochResult:
+        """
+        Evaluate model once over a test set (single epoch).
+        :param dl_test: DataLoader for the test set.
+        :param kw: Keyword args supported by _foreach_batch.
+        :return: An EpochResult for the epoch.
+        """
+        self.model.train(False)  # set evaluation (test) mode
+        return self._foreach_batch(dl_test, self.validate_batch, **kw)
+
     def test_epoch(self, dl_test: DataLoader, **kw) -> EpochResult:
         """
         Evaluate model once over a test set (single epoch).
@@ -140,6 +151,18 @@ class Trainer(abc.ABC):
         """
         Runs a single batch forward through the model, calculates loss,
         preforms back-propagation and updates weights.
+        :param batch: A single batch of data  from a data loader (might
+            be a tuple of data and labels or anything else depending on
+            the underlying dataset.
+        :return: A BatchResult containing the value of the loss function and
+            the number of correctly classified samples in the batch.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def validate_batch(self, batch) -> BatchResult:
+        """
+        Runs a single batch forward through the model and calculates loss.
         :param batch: A single batch of data  from a data loader (might
             be a tuple of data and labels or anything else depending on
             the underlying dataset.
@@ -254,7 +277,7 @@ class RNNTrainer(Trainer):
         wandb.log({'train_loss': loss.item})
         return BatchResult(loss.item(), *prediction_scores(predictions, y))
 
-    def test_batch(self, batch) -> BatchResult:
+    def validate_batch(self, batch) -> BatchResult:
         x, y = batch
 
         #  Evaluate the RNN model on one batch of data.
@@ -267,8 +290,22 @@ class RNNTrainer(Trainer):
         predictions = torch.sigmoid(output)
         predictions = (predictions > self.true_threshold).int()
 
-        wandb.log({'test_loss': loss.item})
+        wandb.log({'validation_loss': loss.item})
         return BatchResult(loss.item(), *prediction_scores(predictions, y))
+
+    def test_batch(self, batch) -> BatchResult:
+        x, y = batch
+
+        #  Evaluate the RNN model on one batch of data.
+        #  - Forward pass
+        #  - Calculate total loss over sequence
+        #  - Calculate score function
+        output = self.model(x).squeeze(1)
+
+        predictions = torch.sigmoid(output)
+        predictions = (predictions > self.true_threshold).int()
+
+        return BatchResult(0, *prediction_scores(predictions, y))
 
     # def test_batch_niv(self, batch) -> BatchResult:
     #     # x - iterator of patient's sequences (batch X length X features), model(x) -> batch (scores)
