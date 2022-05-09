@@ -8,19 +8,12 @@ from torch.utils.data import DataLoader
 from LSTM.patient_LSTM import patientLSTM, PatientDataset, batch_collate
 from LSTM.train_validate import scaler_fn, split_features_label
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Read a given file and predict labels using our LSTM model')
 
-    # Paths
-    parser.add_argument('--test_file', type=str, help='path to test csv file',
-                        default='data/test_raw.csv')
-    # Data parameters
-
-    args = parser.parse_args()
+def main(test_file):
 
     # read data
     print('Reading CSV...')
-    test = pd.read_csv(args.test_file, index_col=0, dtype='float')
+    test = pd.read_csv(test_file, index_col=0, dtype='float')
     print('Done')
 
     test['id'] = test['id'].astype(int)
@@ -48,5 +41,17 @@ if __name__ == '__main__':
         prediction = (prediction > 0.5).int()[0].item()
         results['id'].append(test_ds.patients[i])
         results['prediction'].append(prediction)
-    
+
     pd.DataFrame(results).to_csv('prediction.csv', index=False, header=False)
+
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='Read a given file and predict labels using our LSTM model')
+
+    # Paths
+    parser.add_argument('--test_file', type=str, help='path to test csv file',
+                        default='data/test_raw.csv')
+
+    args = parser.parse_args()
+    main(args.test_file)
