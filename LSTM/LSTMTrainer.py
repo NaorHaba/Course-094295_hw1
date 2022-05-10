@@ -274,7 +274,7 @@ class RNNTrainer(Trainer):
         predictions = torch.sigmoid(output)
         predictions = (predictions > self.true_threshold).int()
 
-        wandb.log({'train_loss': loss.item})
+        wandb.log({'train_loss': loss.item()})
         return BatchResult(loss.item(), *prediction_scores(predictions, y))
 
     def validate_batch(self, batch) -> BatchResult:
@@ -290,7 +290,7 @@ class RNNTrainer(Trainer):
         predictions = torch.sigmoid(output)
         predictions = (predictions > self.true_threshold).int()
 
-        wandb.log({'validation_loss': loss.item})
+        wandb.log({'validation_loss': loss.item()})
         return BatchResult(loss.item(), *prediction_scores(predictions, y))
 
     def test_batch(self, batch) -> BatchResult:
@@ -306,22 +306,3 @@ class RNNTrainer(Trainer):
         predictions = (predictions > self.true_threshold).int()
 
         return BatchResult(0, *prediction_scores(predictions, y))
-
-    # def test_batch_niv(self, batch) -> BatchResult:
-    #     # x - iterator of patient's sequences (batch X length X features), model(x) -> batch (scores)
-    #     # y - one label of the patient
-    #     x, y = batch
-    #     print(x.shape)
-    #     threshold = torch.exp(x.shape[1] - 1)  # TODO: think about it
-    #     weights = torch.exp(torch.range(0, x.shape[2]))
-    #     weights = weights / weights.sum()
-    #
-    #     with torch.no_grad():
-    #         output = self.model(x)
-    #         print(output.shape)
-    #         print(y.shape)
-    #         loss = self.loss_fn(output, y)
-    #         scores = torch.sigmoid(output) * weights  # [0, e^1, 0, 0, e^4, ...]
-    #         predictions = (scores.sum(axis=1) > threshold).int()  # [1, 0, 0, 1, ...]
-    #
-    #     return BatchResult(loss.item(), *prediction_scores(predictions, y))

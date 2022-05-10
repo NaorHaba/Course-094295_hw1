@@ -1,16 +1,14 @@
 import pickle
 
-import numpy as np
 import pandas as pd
 import random
 
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from sklearn.pipeline import Pipeline
-from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import f1_score
+from sklearn.preprocessing import StandardScaler
 from sklearn.feature_selection import SequentialFeatureSelector
 from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
 
-from LSTM.train_validate import scaler_fn
+from LSTM.train_deploy import scaler_fn
 
 
 def read_data(file):
@@ -24,25 +22,26 @@ def aggregate_data(df, hours=30):
     # then scale values
     max_cols = ['ICULOS', 'SepsisLabel']
     mean_cols = [col for col in df if col not in ['id'] + max_cols]
-    df = pd.concat([df.groupby('id')[mean_cols].apply(
-        lambda x: x.tail(hours).mean()), df.groupby('id')[max_cols].apply(lambda x: x.tail(hours).max())], axis=1)
+    df = pd.concat([
+        df.groupby('id')[mean_cols].apply(lambda x: x.tail(hours).mean()),
+        df.groupby('id')[max_cols].apply(lambda x: x.tail(hours).max())], axis=1)
     y = df['SepsisLabel']
     X = df.drop(['SepsisLabel'], axis=1)
     return X, y
 
 
 def select_features(X_t, y_t):
-    sfs = SequentialFeatureSelector(LogisticRegression(), n_features_to_select=0.5, scoring='f1', n_jobs=-1)
+    sfs = SequentialFeatureSelector(LogisticRegression(max_iter=10000), n_features_to_select=0.5, scoring='f1', n_jobs=-1)
     sfs = sfs.fit(X_t, y_t)
     chosen_numeric = X_t.columns[sfs.support_]
     print('Chosen numeric columns:', chosen_numeric)
     X_t = pd.DataFrame(sfs.transform(X_t), columns=chosen_numeric, index=X_t.index)
-    return X_t, sfs
+    return X_t, chosen_numeric
 
 
 if __name__ == '__main__':
     random.seed(42)
-    train_file = '../data/train_raw.csv'
+    train_file = 'data/train_raw.csv'
     test_file = 'data/test_raw.csv'
 
     print('Reading train file...', end=' ')
@@ -60,7 +59,7 @@ if __name__ == '__main__':
     scaler = StandardScaler()
     X_train = scaler_fn(scaler, scaling_columns, X_train)
     X_test = scaler_fn(scaler, scaling_columns, X_test, test=True)
-    pickle.dump(scaler, open('../models/LR_scaler.pkl', 'wb'))
+    pickle.dump(scaler, open('models/LR_scaler.pkl', 'wb'))
     print('Done.')
 
     print('Selecting features...', end=' ')
@@ -75,13 +74,12 @@ if __name__ == '__main__':
     clf = LogisticRegressionCV(cv=cv, random_state=0, scoring='f1', max_iter=max_iter).fit(X_train, y_train)
     print('Done.')
 
-    print(f'Train F1 Score: {round(clf.score(X_train, y_train), 3)}')  # TODO not sure if this is really f1
+    print(f'Train F1 Score: {round(f1_score(y_train, clf.predict(X_train)), 3)}')
 
     print('Saving model...', end=' ')
-    filename = '../models/LR_final_model.pkl'
+    filename = 'models/LR_final_model.pkl'
     pickle.dump(clf, open(filename, 'wb'))
     print('Done.')
 
     print('Testing model...')
-    y_pred = clf.predict(X_test)
-    print(f'Test F1 Score: {round(clf.score(X_train, y_train), 3)}')  # TODO not sure if this is really f1
+    print(f'Test F1 Score: {round(f1_score(y_test, clf.predict(X_test)), 3)}')

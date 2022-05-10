@@ -1,4 +1,6 @@
 import argparse
+import pickle
+
 import pandas as pd
 import torch.nn as nn
 import torch
@@ -46,9 +48,9 @@ def weighted_over_sampler(train):
     sick = set(train[train['SepsisLabel'] == 1.0]['id'].unique())
     for patient, label in train.groupby('id')['SepsisLabel'].max().items():
         if label == 1.0:
-            samples_weight.append(1. / len(sick))
+            samples_weight.append(0.5 / len(sick))
         else:
-            samples_weight.append(1. / len(healthy))
+            samples_weight.append(2. / len(healthy))
     samples_weight = torch.tensor(samples_weight)
     sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
 
@@ -68,9 +70,9 @@ if __name__ == '__main__':
 
     # Paths
     parser.add_argument('--train_file', type=str, help='path to train csv file',
-                        default='../data/train_raw.csv')
+                        default='data/train_raw.csv')
     parser.add_argument('--test_file', type=str, help='path to test csv file',
-                        default='../data/test_raw.csv')
+                        default='data/test_raw.csv')
     parser.add_argument('--valid_size', type=float, help='validation data proportion for split',
                         default=0.15)
     # Data parameters
@@ -139,6 +141,7 @@ if __name__ == '__main__':
         # valid = valid.drop(valid.columns[8: 34], axis=1)
         pass
 
+    scaler = None
     # scale columns
     if args.scale_method is not None:
         if args.scale_method == 'standard':
@@ -182,7 +185,9 @@ if __name__ == '__main__':
 
     # train and test
     with wandb.init(project='hw1', entity='course094295', mode=args.logging_mode, config=vars(args)):
-        model_name = f'../{wandb.run.dir}/model.pth'
+        if scaler is not None:
+            pickle.dump(scaler, open(f'{wandb.run.dir}/LSTM_scaler.pkl', 'wb'))
+        model_name = f'{wandb.run.dir}/model.pth'
         trainer.fit(train_dl, valid_dl, args.epochs, score_fn=score_fn, checkpoints=model_name,
                     early_stopping=15)
         wandb.watch(model, log_freq=100)

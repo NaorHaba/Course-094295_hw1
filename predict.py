@@ -9,7 +9,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # Paths
-    parser.add_argument('--test_directory', type=str, help='path to test csv file')
+    parser.add_argument('test_directory', type=str, help='path to test csv file')
     # model parameters
     parser.add_argument('--model_type', type=str, choices=['LSTM', 'LR'], help='type of model to predict with',
                         default='LSTM')

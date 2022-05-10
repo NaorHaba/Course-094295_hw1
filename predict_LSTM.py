@@ -3,10 +3,9 @@ import pickle
 
 import pandas as pd
 import torch
-from torch.utils.data import DataLoader
 
 from LSTM.patient_LSTM import patientLSTM, PatientDataset, batch_collate
-from LSTM.train_validate import scaler_fn, split_features_label
+from LSTM.train_deploy import scaler_fn, split_features_label
 
 
 def main(test_file):
@@ -25,22 +24,29 @@ def main(test_file):
 
     # create dataset
     test_X, test_y = split_features_label(test)
-    test_ds = PatientDataset(test, test_y, 35)
+    test_ds = PatientDataset(test_X, test_y, 28)
 
     # build and load model
-    model = patientLSTM(features_dim=42, hidden_dim=512, n_layers=3, dropout=0.45)
-    model_name = f'../models/LSTM_final_model.pth'
+    model = patientLSTM(features_dim=42, hidden_dim=47, n_layers=1, dropout=0.57)
+    model_name = f'models/LSTM_final_model.pth'
     model.load_state_dict(torch.load(model_name)['model_state'])
 
     # predict
     results = {'id': [], 'prediction': []}
-    for i in range(len(test_ds.patients)):
-        x, _ = test_ds[i]
+    batch_size = 8
+    for i in range(0, len(test_ds.patients), batch_size):
+        batch = []
+        ids = []
+        for j in range(i, i + batch_size):
+            x, y = test_ds[j]
+            batch.append((x, y))
+            ids.append(test_ds.patients[j])
+        x, _ = batch_collate(batch)
         output = model(x).squeeze(1)
         prediction = torch.sigmoid(output)
-        prediction = (prediction > 0.5).int()[0].item()
-        results['id'].append(test_ds.patients[i])
-        results['prediction'].append(prediction)
+        prediction = list((prediction > 0.5).int().numpy())
+        results['id'] += ids
+        results['prediction'] += prediction
 
     pd.DataFrame(results).to_csv('prediction.csv', index=False, header=False)
 

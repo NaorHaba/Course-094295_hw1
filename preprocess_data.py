@@ -54,7 +54,7 @@ def engineer_lab_values(df, lab_values):
     return df[lab_values]
 
 
-def pipeline_eda(t_df, columns, save_path, icu_fill_cols=None, fix_smooth_cols=None, lab_values=False):
+def pipeline_eda(t_df, columns, save_path, icu_fill_cols=None, fix_smooth_cols=None, lab_values=None):
     # add ICU where it's missing and bfill
     if icu_fill_cols:
         print('Filling ICULOS')
@@ -72,7 +72,7 @@ def pipeline_eda(t_df, columns, save_path, icu_fill_cols=None, fix_smooth_cols=N
         t_df = fix_and_smooth(t_df, fix_smooth_cols)
 
     # engineer lab values as frequencies
-    if lab_values:
+    if lab_values is not None:
         print('Engineering lab values')
         t_df[columns['lab_values']] = engineer_lab_values(t_df, columns['lab_values'])
     else:
@@ -88,7 +88,7 @@ def pipeline_eda(t_df, columns, save_path, icu_fill_cols=None, fix_smooth_cols=N
     t_df_raw = t_df[~((t_df['SepsisLabel'] == 1.0) & (t_df.groupby('id')['SepsisLabel'].diff() == 0.0))]
 
     print('Saving file')
-    t_df_raw.to_csv(save_path, index=False)
+    t_df_raw.to_csv(save_path)
 
     return t_df_raw
 
@@ -111,18 +111,19 @@ def main(file):
                        'EtCO2': (None, None),
                        }
 
+    file_name_no_extension = file.split("/")[-1].split(".")[0]
     pipeline_eda(t_df, columns,
-                 save_path=f'data/{file.split("/")[-1]}_raw.csv',
+                 save_path=f'data/{file_name_no_extension}_raw.csv',
                  icu_fill_cols=icu_fill_cols,
                  fix_smooth_cols=fix_smooth_cols,
                  lab_values=columns['lab_values'])
-    # TODO: make sure it's okay to do file.split..., meaning they will definitely give a path like this
-    return f'data/{file.split("/")[-1]}_raw.csv'
+
+    return f'data/{file_name_no_extension}_raw.csv'
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Data Preprocessing')
     parser.add_argument('--file', type=str, help='path to data folder (containing csv files)',
-                        default='data/train')
+                        default='data/test')
     args = parser.parse_args()
     main(args.file)
