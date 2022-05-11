@@ -33,11 +33,11 @@ def main(test_file):
 
     # predict
     results = {'id': [], 'prediction': []}
-    batch_size = 8
+    batch_size = 32
     for i in range(0, len(test_ds.patients), batch_size):
         batch = []
         ids = []
-        for j in range(i, i + batch_size):
+        for j in range(i, min(i + batch_size, len(test_ds.patients))):
             x, y = test_ds[j]
             batch.append((x, y))
             ids.append(test_ds.patients[j])

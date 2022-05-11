@@ -301,8 +301,9 @@ class RNNTrainer(Trainer):
         #  - Calculate total loss over sequence
         #  - Calculate score function
         output = self.model(x).squeeze(1)
+        loss = self.loss_fn(output, y)
 
         predictions = torch.sigmoid(output)
         predictions = (predictions > self.true_threshold).int()
 
-        return BatchResult(0, *prediction_scores(predictions, y))
+        return BatchResult(loss.item(), *prediction_scores(predictions, y))

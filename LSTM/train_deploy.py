@@ -21,16 +21,16 @@ def split_features_label(df):
     return df.drop(['SepsisLabel'], axis=1), df['SepsisLabel'].astype(int)
 
 
-def split_train_validation(valid_size):
-    sick = set(t_df[t_df['SepsisLabel'] == 1.0]['id'].unique())
-    healthy = set(t_df['id'].unique()) - sick
+def split_train_validation(df, valid_size):
+    sick = set(df[df['SepsisLabel'] == 1.0]['id'].unique())
+    healthy = set(df['id'].unique()) - sick
     t_sick = set(random.sample(sick, int(len(sick) * (1 - valid_size))))
     v_sick = sick - t_sick
     t_healthy = set(random.sample(healthy, int(len(healthy) * (1 - valid_size))))
     v_healthy = healthy - t_healthy
 
-    train = t_df[t_df.id.isin(list(t_sick) + list(t_healthy))].sort_values(['id', 'SepsisLabel'])
-    valid = t_df[t_df.id.isin(list(v_sick) + list(v_healthy))].sort_values(['id', 'SepsisLabel'])
+    train = df[df.id.isin(list(t_sick) + list(t_healthy))].sort_values(['id', 'SepsisLabel'])
+    valid = df[df.id.isin(list(v_sick) + list(v_healthy))].sort_values(['id', 'SepsisLabel'])
 
     return train, valid
 
@@ -77,13 +77,13 @@ if __name__ == '__main__':
                         default=0.15)
     # Data parameters
     parser.add_argument('--sampling_method', type=str, help='method for sampling (over or under sampling)',
-                        default='over', choices=['under', 'over', 'under-over'])
+                        default='under-over', choices=['under', 'over', 'under-over'])
     parser.add_argument('--under_sample_rate', type=float, help='sampling rate for sampling method',
-                        default=0.5)
+                        default=0.905290375970129)
     parser.add_argument('--remove_columns', type=str, help='method for columns removal',
                         default='')
     parser.add_argument('--scale_method', type=str, help='method for scaling (standard or minmax scalers)',
-                        default='minmax', choices=['standard', 'minmax'])
+                        default='standard', choices=['standard', 'minmax'])
     parser.add_argument('--scaling_columns', type=str, help='method for columns removal',
                         default='')  # '_' delimited: "HR_Temp_..."
     # Model parameters
@@ -92,13 +92,13 @@ if __name__ == '__main__':
     parser.add_argument('--test_batch_size', type=int, help='test batch size',
                         default=32)
     parser.add_argument('--window_size', type=int, help='window size',
-                        default=30)
+                        default=28)
     parser.add_argument('--hidden_dim', type=int, help='',
-                        default=256)
+                        default=47)
     parser.add_argument('--LSTM_n_layers', type=int, help='',
-                        default=2)
+                        default=1)
     parser.add_argument('--dropout', type=float, help='',
-                        default=0.3)
+                        default=0.57)
     parser.add_argument('--lr', type=float, help='',
                         default=0.005)
     parser.add_argument('--true_threshold', type=float, help='',
@@ -121,7 +121,7 @@ if __name__ == '__main__':
     test['id'] = test['id'].astype(int)
 
     # split train-validation
-    train, valid = split_train_validation(args.valid_size)
+    train, valid = split_train_validation(t_df, args.valid_size)
 
     sampler = None
     # Under/Over-Sampling

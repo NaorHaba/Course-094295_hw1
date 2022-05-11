@@ -1,5 +1,7 @@
 from typing import List, NamedTuple
 
+import torch
+
 
 class BatchResult(NamedTuple):
     """
@@ -8,10 +10,11 @@ class BatchResult(NamedTuple):
     """
 
     loss: float
-    TP: int
-    FP: int
-    TN: int
-    FN: int
+    # TP: int
+    # FP: int
+    # TN: int
+    # FN: int
+    predictions: torch.Tensor
 
 
 class EpochResult(NamedTuple):

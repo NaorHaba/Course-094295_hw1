@@ -2,7 +2,6 @@ import argparse
 import pickle
 
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
 
 from LSTM.train_deploy import scaler_fn
 from LogisticRegression.train_deploy import aggregate_data
@@ -45,7 +44,7 @@ def main(test_file):
     y_pred = pd.Series(model.predict(X_test.drop('id', axis=1)), index=X_test.index)
 
     preds = pd.concat([X_test['id'], y_pred], axis=1)
-    preds.to_csv('prediction.csv', index=False, header=False)
+    preds.to_csv('LR_prediction.csv', index=False, header=False)
 
 
 if __name__ == '__main__':
