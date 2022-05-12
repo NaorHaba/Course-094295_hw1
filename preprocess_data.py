@@ -26,6 +26,8 @@ def add_ICULOS_rows(g, fill_cols):
         g = pd.concat([pd.DataFrame(ICULOS_hours), g])
         for col_group in fill_cols:
             g[col_group] = g[col_group].bfill()
+            # if none of the values is present, fill with default 0 value (HospAdmTime in test)
+            g[col_group] = g[col_group].fillna(0)
     return g
 
 

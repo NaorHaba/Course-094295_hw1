@@ -80,15 +80,13 @@ if __name__ == '__main__':
                         default='under-over', choices=['under', 'over', 'under-over'])
     parser.add_argument('--under_sample_rate', type=float, help='sampling rate for sampling method',
                         default=0.905290375970129)
-    parser.add_argument('--remove_columns', type=str, help='method for columns removal',
-                        default='')
     parser.add_argument('--scale_method', type=str, help='method for scaling (standard or minmax scalers)',
                         default='standard', choices=['standard', 'minmax'])
     parser.add_argument('--scaling_columns', type=str, help='method for columns removal',
                         default='')  # '_' delimited: "HR_Temp_..."
     # Model parameters
     parser.add_argument('--train_batch_size', type=int, help='train batch size',
-                        default=8)
+                        default=23)
     parser.add_argument('--test_batch_size', type=int, help='test batch size',
                         default=32)
     parser.add_argument('--window_size', type=int, help='window size',
@@ -100,11 +98,11 @@ if __name__ == '__main__':
     parser.add_argument('--dropout', type=float, help='',
                         default=0.57)
     parser.add_argument('--lr', type=float, help='',
-                        default=0.005)
+                        default=0.006181292169703902)
     parser.add_argument('--true_threshold', type=float, help='',
                         default=0.5)
     parser.add_argument('--epochs', type=int, help='',
-                        default=5)
+                        default=70)
     parser.add_argument('--logging_mode', type=str, choices=['online', 'offline', 'disabled'], help='',
                         default='online')
 
@@ -133,13 +131,6 @@ if __name__ == '__main__':
         else:
             train = under_sample(train, under_sample_rate=args.under_sample_rate)
             sampler = weighted_over_sampler(train)
-
-    # Remove columns
-    if args.remove_columns is not None:
-        # TODO change to different functions
-        # train = train.drop(train.columns[8: 34], axis=1)
-        # valid = valid.drop(valid.columns[8: 34], axis=1)
-        pass
 
     scaler = None
     # scale columns
