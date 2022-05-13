@@ -114,13 +114,14 @@ def main(file):
                        }
 
     file_name_no_extension = file.split("/")[-1].split(".")[0]
+    file_name = f'data/{file_name_no_extension}_raw.csv'
+    os.makedirs(os.path.dirname(file_name), exist_ok=True)
     pipeline_eda(t_df, columns,
-                 save_path=f'data/{file_name_no_extension}_raw.csv',
+                 save_path=file_name,
                  icu_fill_cols=icu_fill_cols,
                  fix_smooth_cols=fix_smooth_cols,
                  lab_values=columns['lab_values'])
-
-    return f'data/{file_name_no_extension}_raw.csv'
+    return file_name
 
 
 if __name__ == '__main__':
